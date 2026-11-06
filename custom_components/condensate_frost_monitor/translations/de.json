@@ -1,0 +1,408 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Kondensat-Frostwächter einrichten",
+        "description": "Wähle die Temperaturfühler. Rohrfühler und Außentemperatur sind Pflicht.",
+        "data": {
+          "name": "Name",
+          "pipe_sensor": "Rohrfühler (Kondensatablauf)",
+          "outdoor_sensor": "Außentemperatur",
+          "soil_sensor": "Erdreich-Referenzfühler (optional)"
+        },
+        "data_description": {
+          "pipe_sensor": "Temperaturfühler im Kondensatrohr, z. B. Ecowitt WN34L.",
+          "outdoor_sensor": "Lufttemperatur draußen, für Frostgrad, Kältesumme und Kopplung.",
+          "soil_sensor": "Ungestörtes Erdreich neben dem Ablauf, z. B. Ecowitt WN34S. Nur wenn gesetzt, werden die Erdreich-Entities angelegt."
+        }
+      },
+      "weather": {
+        "title": "Wetterstation (optional)",
+        "description": "Alles optional. Nur für gesetzte Sensoren werden zusätzliche Entities angelegt.",
+        "data": {
+          "humidity_sensor": "Luftfeuchte außen",
+          "dewpoint_sensor": "Taupunkt außen",
+          "rain_sensor": "Niederschlag (Zähler)",
+          "wind_sensor": "Windgeschwindigkeit",
+          "forecast_entity": "Wettervorhersage"
+        },
+        "data_description": {
+          "humidity_sensor": "Für Taupunkt und Abtau-Wetter. Reicht allein, der Taupunkt wird dann berechnet.",
+          "dewpoint_sensor": "Wird bevorzugt, wenn vorhanden.",
+          "rain_sensor": "Ein hochzählender Niederschlagszähler, z. B. total_rain oder daily_rain. Rücksetzungen werden erkannt.",
+          "wind_sensor": "Mittlere Windgeschwindigkeit (nicht die Böen).",
+          "forecast_entity": "Eine weather-Entity mit Vorhersage, z. B. DWD, AstroWeather oder Met.no. Stündliche Vorhersagen werden bevorzugt."
+        }
+      },
+      "heatpump": {
+        "title": "Wärmepumpe (optional)",
+        "description": "Signale der Wärmepumpe, z. B. über EMS-ESP. Alles optional, nur für gesetzte Eingänge entstehen Entities.",
+        "data": {
+          "defrost_entity": "Abtau-Signal",
+          "pan_temp_sensor": "Temperatur Kondensatwanne",
+          "pan_heater_entity": "Heizung Kondensatwanne",
+          "heat_cable_entity": "Heizband (Begleitheizung)"
+        },
+        "data_description": {
+          "defrost_entity": "Ein Binärsensor, der beim Abtauen „an“ ist, oder ein Text-Sensor wie die Kompressoraktivität (EMS-ESP: hpactivity), der „Abtauen“ bzw. „defrost“ meldet.",
+          "pan_temp_sensor": "Temperatur der Kondensatwanne in der Außeneinheit (EMS-ESP: hpta4).",
+          "pan_heater_entity": "Status der Wannenheizung (EMS-ESP: hpea0).",
+          "heat_cable_entity": "Status des Heizbands im Kondensatablauf (EMS-ESP: heatcable)."
+        }
+      }
+    },
+    "error": {
+      "same_sensor": "Jeder Fühler darf nur einmal verwendet werden."
+    },
+    "abort": {
+      "already_configured": "Dieser Rohrfühler wird bereits überwacht."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sensoren",
+        "description": "Fühler ändern oder den Erdreich-Fühler ergänzen bzw. entfernen.",
+        "data": {
+          "pipe_sensor": "Rohrfühler (Kondensatablauf)",
+          "outdoor_sensor": "Außentemperatur",
+          "soil_sensor": "Erdreich-Referenzfühler (optional)"
+        },
+        "data_description": {
+          "pipe_sensor": "Temperaturfühler im Kondensatrohr, z. B. Ecowitt WN34L.",
+          "outdoor_sensor": "Lufttemperatur draußen, für Frostgrad, Kältesumme und Kopplung.",
+          "soil_sensor": "Ungestörtes Erdreich neben dem Ablauf, z. B. Ecowitt WN34S. Nur wenn gesetzt, werden die Erdreich-Entities angelegt."
+        }
+      },
+      "thresholds": {
+        "title": "Schwellen",
+        "description": "Startwerte, die du nach den ersten Gießtests und Abtauungen anpassen kannst. Abschnitte für nicht eingerichtete Sensoren werden ausgeblendet.",
+        "sections": {
+          "analysis": {
+            "name": "Auswertung des Rohrfühlers",
+            "description": "Wie die Rohrtemperatur geglättet und bewertet wird. Grundlage für alle Zustände unten.",
+            "data": {
+              "baseline_hours": "Zeitraum Grundlinie",
+              "slope_minutes": "Zeitraum Steigung",
+              "span_minutes": "Zeitraum Spannweite",
+              "event_threshold": "Ereignis ab Abweichung"
+            },
+            "data_description": {
+              "baseline_hours": "Zeitraum für den Normalwert (Median) des Rohrs. Länger ist ruhiger, passt sich aber langsamer an Jahreszeiten an.",
+              "slope_minutes": "Zeitraum für die Steigung (Ausgleichsgerade). Länger glättet die 0,1-K-Sprünge des Sensors besser, reagiert aber träger.",
+              "span_minutes": "Zeitraum für die Spannweite (Max − Min). Zeigt, wie viel sich im Rohr zuletzt bewegt hat.",
+              "event_threshold": "Ab dieser Abweichung vom Normalwert gilt eine Messung als Ereignis (Abtauwasser, Rückstau). Der Normalwert friert dann ein und wird nicht mitgezogen."
+            }
+          },
+          "plateau": {
+            "name": "Gefrierplateau (Warnung)",
+            "description": "Gefrierendes Wasser hält die Temperatur lange genau bei 0 °C. Klebt der Rohrfühler dort, steht Wasser im Rohr und friert gerade.",
+            "data": {
+              "plateau_band": "Band um 0 °C (±)",
+              "plateau_slope": "Max. Steigung",
+              "plateau_minutes": "Mindestdauer"
+            },
+            "data_description": {
+              "plateau_band": "Wie nah an 0 °C der Rohrwert liegen muss. Etwas Spielraum ist nötig, weil Funksensoren einige Zehntel Messfehler haben.",
+              "plateau_slope": "Die Temperatur darf sich höchstens so schnell ändern. Ein echtes Plateau ist fast flach.",
+              "plateau_minutes": "So lange muss beides ununterbrochen zutreffen. Verhindert Fehlalarme, wenn kaltes Wasser nur kurz durchläuft."
+            }
+          },
+          "below_zero": {
+            "name": "Rohr unter Null (Alarm)",
+            "description": "Das Wasser im Rohr ist durchgefroren oder das Rohr ist leer und kalt.",
+            "data": {
+              "below_zero_threshold": "Schwelle",
+              "below_zero_minutes": "Mindestdauer"
+            },
+            "data_description": {
+              "below_zero_threshold": "Schwelle für den Alarm. Etwas unter 0 °C, damit Messfehler am Gefrierpunkt keinen Alarm auslösen.",
+              "below_zero_minutes": "So lange muss der Rohrwert darunter bleiben."
+            }
+          },
+          "stagnant": {
+            "name": "Rückstau-Verdacht (Warnung)",
+            "description": "Die Rohrtemperatur weicht deutlich vom Normalwert ab, bewegt sich aber kaum noch. Freies Wasser würde abfließen, stehendes Wasser hält seine Temperatur.",
+            "data": {
+              "stagnant_deviation": "Min. Abweichung",
+              "stagnant_span": "Max. Spannweite",
+              "stagnant_minutes": "Mindestdauer"
+            },
+            "data_description": {
+              "stagnant_deviation": "Mindestabweichung vom Normalwert, damit ein Rückstau überhaupt in Frage kommt.",
+              "stagnant_span": "Höchstens so viel Bewegung innerhalb des Spannweiten-Zeitraums. Darunter gilt die Temperatur als festgefahren.",
+              "stagnant_minutes": "So lange muss der Zustand anhalten."
+            }
+          },
+          "soil": {
+            "name": "Erdreich (Info)",
+            "description": "Frühwarnung, wenn sich der Frost dem Rohr von oben nähert.",
+            "data": {
+              "soil_frost_threshold": "Schwelle",
+              "soil_frost_minutes": "Mindestdauer"
+            },
+            "data_description": {
+              "soil_frost_threshold": "Ab dieser Erdtemperatur gilt die Frostfront als nah. Der Referenzfühler liegt ja über dem Rohr.",
+              "soil_frost_minutes": "So lange muss der Erdfühler darunter bleiben."
+            }
+          },
+          "weather": {
+            "name": "Wetterstation",
+            "description": "Bewertung der optionalen Wetterstation-Sensoren.",
+            "data": {
+              "defrost_temp_min": "Abtau-Wetter: untere Temperatur",
+              "defrost_temp_max": "Abtau-Wetter: obere Temperatur",
+              "defrost_spread": "Abtau-Wetter: max. Abstand zum Taupunkt",
+              "wet_pit_rain_7d": "Sickergrube nass ab Regen in 7 Tagen",
+              "wind_chill_speed": "Auskühlung durch Wind ab Windmittel"
+            },
+            "data_description": {
+              "defrost_temp_min": "Untere Außentemperatur für Abtau-Wetter. Darunter ist die Luft meist so trocken, dass wenig Reif entsteht.",
+              "defrost_temp_max": "Obere Außentemperatur für Abtau-Wetter. Darüber taut der Verdampfer meist von selbst ab.",
+              "defrost_spread": "Maximaler Abstand zwischen Temperatur und Taupunkt. Klein heißt feuchte Luft, dann bereift der Verdampfer schnell.",
+              "wet_pit_rain_7d": "Ab dieser Regenmenge in 7 Tagen gilt die Sickergrube als nass und nimmt Kondensat schlechter auf.",
+              "wind_chill_speed": "Ab diesem Windmittel kühlt Wind bei Frost das senkrechte Rohr zusätzlich aus. Steht die Station offener als die Wärmepumpe, höher ansetzen."
+            }
+          },
+          "forecast": {
+            "name": "Vorhersage (Info)",
+            "description": "Vorwarnungen aus der Wettervorhersage.",
+            "data": {
+              "forecast_frost_threshold": "Frost vorhergesagt ab Tiefstwert (24 h)",
+              "clear_sky_cloud": "Strahlungsfrost: Bewölkung höchstens",
+              "calm_wind": "Strahlungsfrost: Wind höchstens"
+            },
+            "data_description": {
+              "forecast_frost_threshold": "Liegt der vorhergesagte Tiefstwert der nächsten 24 h hier oder darunter, gibt es eine Vorwarnung.",
+              "clear_sky_cloud": "Höchste Bewölkung, bei der eine Frostnacht als klar gilt. In klaren Nächten kühlt der Boden durch Abstrahlung stärker aus als die Luft.",
+              "calm_wind": "Höchster Wind für Strahlungsfrost. Wind mischt die Luft und verhindert die starke Auskühlung am Boden."
+            }
+          },
+          "heatpump": {
+            "name": "Wärmepumpe",
+            "description": "Auswertung der Abtauvorgänge und der Kondensatwanne.",
+            "data": {
+              "defrost_reaction_threshold": "Abtauung: Mindestausschlag am Rohr",
+              "defrost_reaction_minutes": "Abtauung: Wartezeit auf Reaktion",
+              "defrost_miss_count": "Abtauung: Fehlversuche bis Warnung",
+              "pan_frost_threshold": "Kondensatwanne: Frostschwelle",
+              "pan_frost_minutes": "Kondensatwanne: Mindestdauer"
+            },
+            "data_description": {
+              "defrost_reaction_threshold": "So weit muss sich die Rohrtemperatur nach einer Abtauung von der Grundlinie entfernen, damit das Abtauwasser als angekommen gilt.",
+              "defrost_reaction_minutes": "So lange nach dem Ende der Abtauung wird auf den Ausschlag gewartet. Danach zählt die Abtauung als ohne Reaktion.",
+              "defrost_miss_count": "So viele Abtauungen in Folge ohne Reaktion lösen die Warnung aus. Einzelne Abtauungen mit wenig Wasser kommen manchmal nicht am Fühler an.",
+              "pan_frost_threshold": "Unter dieser Wannentemperatur droht das Kondensat in der Außeneinheit zu gefrieren.",
+              "pan_frost_minutes": "So lange muss die Wanne darunter bleiben."
+            }
+          },
+          "fault": {
+            "name": "Fühlerstörung",
+            "description": "Erkennung ausgefallener oder leerer Funksensoren.",
+            "data": {
+              "stale_minutes": "Fühler ohne neue Werte seit"
+            },
+            "data_description": {
+              "stale_minutes": "Meldet der Rohr- oder Erdfühler so lange keinen neuen Wert, gilt er als gestört (z. B. Batterie leer, Funk weg)."
+            }
+          },
+          "maintenance": {
+            "name": "Wartungsmodus",
+            "description": "Solange der Wartungsmodus an ist, werden keine Meldungen ausgelöst und der Status zeigt „Wartung“.",
+            "data": {
+              "maintenance_hours": "Automatisch ausschalten nach"
+            },
+            "data_description": {
+              "maintenance_hours": "Danach schaltet sich der Wartungsmodus selbst ab, damit er nicht vergessen wird. 0 = nie."
+            }
+          }
+        }
+      },
+      "weather": {
+        "title": "Wetterstation (optional)",
+        "description": "Alles optional. Nur für gesetzte Sensoren werden zusätzliche Entities angelegt.",
+        "data": {
+          "humidity_sensor": "Luftfeuchte außen",
+          "dewpoint_sensor": "Taupunkt außen",
+          "rain_sensor": "Niederschlag (Zähler)",
+          "wind_sensor": "Windgeschwindigkeit",
+          "forecast_entity": "Wettervorhersage"
+        },
+        "data_description": {
+          "humidity_sensor": "Für Taupunkt und Abtau-Wetter. Reicht allein, der Taupunkt wird dann berechnet.",
+          "dewpoint_sensor": "Wird bevorzugt, wenn vorhanden.",
+          "rain_sensor": "Ein hochzählender Niederschlagszähler, z. B. total_rain oder daily_rain. Rücksetzungen werden erkannt.",
+          "wind_sensor": "Mittlere Windgeschwindigkeit (nicht die Böen).",
+          "forecast_entity": "Eine weather-Entity mit Vorhersage, z. B. DWD, AstroWeather oder Met.no. Stündliche Vorhersagen werden bevorzugt."
+        }
+      },
+      "heatpump": {
+        "title": "Wärmepumpe (optional)",
+        "description": "Signale der Wärmepumpe, z. B. über EMS-ESP. Alles optional, nur für gesetzte Eingänge entstehen Entities.",
+        "data": {
+          "defrost_entity": "Abtau-Signal",
+          "pan_temp_sensor": "Temperatur Kondensatwanne",
+          "pan_heater_entity": "Heizung Kondensatwanne",
+          "heat_cable_entity": "Heizband (Begleitheizung)"
+        },
+        "data_description": {
+          "defrost_entity": "Ein Binärsensor, der beim Abtauen „an“ ist, oder ein Text-Sensor wie die Kompressoraktivität (EMS-ESP: hpactivity), der „Abtauen“ bzw. „defrost“ meldet.",
+          "pan_temp_sensor": "Temperatur der Kondensatwanne in der Außeneinheit (EMS-ESP: hpta4).",
+          "pan_heater_entity": "Status der Wannenheizung (EMS-ESP: hpea0).",
+          "heat_cable_entity": "Status des Heizbands im Kondensatablauf (EMS-ESP: heatcable)."
+        }
+      }
+    },
+    "error": {
+      "same_sensor": "Jeder Fühler darf nur einmal verwendet werden."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "ok": "OK",
+          "info": "Info",
+          "stoerung": "Störung",
+          "warnung": "Warnung",
+          "alarm": "Alarm",
+          "wartung": "Wartung"
+        }
+      },
+      "baseline": {
+        "name": "Grundlinie"
+      },
+      "deviation": {
+        "name": "Abweichung"
+      },
+      "slope": {
+        "name": "Steigung"
+      },
+      "span": {
+        "name": "Spannweite"
+      },
+      "delta_outdoor": {
+        "name": "Δ Außen"
+      },
+      "frost_degree": {
+        "name": "Frostgrad"
+      },
+      "frost_degree_hours": {
+        "name": "Frostgradstunden Saison"
+      },
+      "delta_soil": {
+        "name": "Δ Boden"
+      },
+      "soil_trend": {
+        "name": "Erdreich Trend"
+      },
+      "buffer_hours": {
+        "name": "Messpuffer"
+      },
+      "dewpoint": {
+        "name": "Taupunkt"
+      },
+      "dewpoint_spread": {
+        "name": "Abstand zum Taupunkt"
+      },
+      "rain_24h": {
+        "name": "Niederschlag 24 h"
+      },
+      "rain_7d": {
+        "name": "Niederschlag 7 Tage"
+      },
+      "wind_1h": {
+        "name": "Wind 1-h-Mittel"
+      },
+      "forecast_min_24h": {
+        "name": "Vorhersage Tiefstwert 24 h"
+      },
+      "forecast_min_48h": {
+        "name": "Vorhersage Tiefstwert 48 h"
+      },
+      "forecast_frost_hours": {
+        "name": "Vorhersage Froststunden 48 h"
+      },
+      "forecast_frost_degree_hours": {
+        "name": "Vorhersage Frostgradstunden 48 h"
+      },
+      "forecast_defrost_hours": {
+        "name": "Vorhersage Abtau-Stunden 24 h"
+      },
+      "defrost_count_24h": {
+        "name": "Abtauungen 24 h"
+      },
+      "last_defrost": {
+        "name": "Letzte Abtauung"
+      },
+      "last_defrost_duration": {
+        "name": "Dauer letzte Abtauung"
+      },
+      "last_defrost_peak": {
+        "name": "Ausschlag letzte Abtauung"
+      },
+      "last_defrost_recovery": {
+        "name": "Erholzeit letzte Abtauung"
+      },
+      "pan_heater_hours": {
+        "name": "Laufzeit Wannenheizung 24 h"
+      },
+      "heat_cable_hours": {
+        "name": "Laufzeit Heizband 24 h"
+      }
+    },
+    "binary_sensor": {
+      "freezing_plateau": {
+        "name": "Gefrierplateau"
+      },
+      "below_zero": {
+        "name": "Rohr unter Null"
+      },
+      "stagnant_water": {
+        "name": "Rückstau-Verdacht"
+      },
+      "soil_frost": {
+        "name": "Erdreich frostnah"
+      },
+      "sensor_fault": {
+        "name": "Fühlerstörung"
+      },
+      "defrost_weather": {
+        "name": "Abtau-Wetter"
+      },
+      "wet_pit": {
+        "name": "Sickergrube nass"
+      },
+      "wind_chill": {
+        "name": "Auskühlung durch Wind"
+      },
+      "forecast_frost": {
+        "name": "Frost vorhergesagt"
+      },
+      "radiative_frost": {
+        "name": "Strahlungsfrost vorhergesagt"
+      },
+      "defrost_active": {
+        "name": "Abtauung aktiv"
+      },
+      "defrost_no_reaction": {
+        "name": "Abtauung ohne Reaktion"
+      },
+      "pan_frost": {
+        "name": "Kondensatwanne frostgefährdet"
+      }
+    },
+    "switch": {
+      "maintenance": {
+        "name": "Wartungsmodus"
+      }
+    }
+  },
+  "issues": {
+    "sensor_fault": {
+      "title": "Kondensat-Frostwächter: Fühler liefert keine Werte",
+      "description": "Bei „{name}“ meldet ein Fühler seit über {minutes} Minuten keine neuen Werte. Prüfe Batterie und Funkverbindung. Der Hinweis verschwindet von selbst, sobald wieder Werte kommen."
+    }
+  }
+}

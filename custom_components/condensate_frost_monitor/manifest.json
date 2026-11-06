@@ -1,0 +1,18 @@
+{
+  "domain": "condensate_frost_monitor",
+  "name": "Kondensat-Frostwächter",
+  "codeowners": [
+    "@ChristophCaina"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/ChristophCaina/condensate_frost_monitor",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/ChristophCaina/condensate_frost_monitor/issues",
+  "requirements": [],
+  "version": "0.6.0",
+  "after_dependencies": [
+    "recorder"
+  ]
+}

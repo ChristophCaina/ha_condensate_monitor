@@ -1,0 +1,169 @@
+blueprint:
+  name: Kondensat-Frostwächter – Benachrichtigungen
+  description: >
+    Benachrichtigt bei Ereignissen des Kondensat-Frostwächters. Du wählst, welche
+    Ereignisse melden, und ob als Benachrichtigung in Home Assistant, aufs
+    Smartphone oder beides. Im Wartungsmodus kommen keine Ereignisse.
+  domain: automation
+  source_url: https://github.com/ChristophCaina/condensate_frost_monitor/blob/main/blueprints/automation/condensate_frost_monitor/notify.yaml
+  input:
+    monitor:
+      name: Kondensat-Frostwächter
+      description: Das Gerät der Integration.
+      selector:
+        device:
+          filter:
+            - integration: condensate_frost_monitor
+    reasons:
+      name: Ereignisse
+      description: Bei welchen Ereignissen benachrichtigt werden soll.
+      default:
+        - rohr_unter_null
+        - gefrierplateau
+        - rueckstau_verdacht
+        - abtauung_ohne_reaktion
+        - kondensatwanne_frost
+        - erdreich_frostnah
+        - nasse_grube_bei_frost
+        - auskuehlung_wind
+        - frost_vorhergesagt
+        - strahlungsfrost_vorhergesagt
+        - rohrfuehler_ohne_werte
+        - erdfuehler_ohne_werte
+      selector:
+        select:
+          multiple: true
+          options:
+            - label: "Alarm: Rohr unter 0 °C"
+              value: rohr_unter_null
+            - label: "Warnung: Gefrierplateau"
+              value: gefrierplateau
+            - label: "Warnung: Rückstau-Verdacht"
+              value: rueckstau_verdacht
+            - label: "Warnung: Abtauung ohne Reaktion"
+              value: abtauung_ohne_reaktion
+            - label: "Warnung: Kondensatwanne frostgefährdet"
+              value: kondensatwanne_frost
+            - label: "Info: Erdreich frostnah"
+              value: erdreich_frostnah
+            - label: "Info: Sickergrube nass bei Frost"
+              value: nasse_grube_bei_frost
+            - label: "Info: Auskühlung durch Wind"
+              value: auskuehlung_wind
+            - label: "Info: Frost vorhergesagt"
+              value: frost_vorhergesagt
+            - label: "Info: Strahlungsfrost vorhergesagt"
+              value: strahlungsfrost_vorhergesagt
+            - label: "Störung: Rohrfühler ohne Werte"
+              value: rohrfuehler_ohne_werte
+            - label: "Störung: Erdfühler ohne Werte"
+              value: erdfuehler_ohne_werte
+    persistent:
+      name: Benachrichtigung in Home Assistant
+      description: >
+        Legt für jedes Ereignis eine Benachrichtigung in Home Assistant an und
+        entfernt sie wieder, wenn das Ereignis vorbei ist.
+      default: true
+      selector:
+        boolean: {}
+    notify_service:
+      name: Smartphone (Notify-Dienst)
+      description: >
+        Optional, z. B. notify.mobile_app_pixel_8_pro. Leer lassen, wenn nichts
+        aufs Smartphone soll.
+      default: ""
+      selector:
+        text: {}
+    phone_levels:
+      name: Stufen fürs Smartphone
+      description: Welche Stufen aufs Smartphone gehen. Die übrigen erscheinen nur in Home Assistant.
+      default: [alarm, warnung, stoerung]
+      selector:
+        select:
+          multiple: true
+          options:
+            - label: Alarm
+              value: alarm
+            - label: Warnung
+              value: warnung
+            - label: Störung
+              value: stoerung
+            - label: Info
+              value: info
+    critical_alarm:
+      name: Alarm als kritische Benachrichtigung
+      description: >
+        Bei Stufe „Alarm“ wird die Smartphone-Meldung kritisch gesendet und
+        durchbricht „Nicht stören“ (Android: Alarm-Kanal, iOS: kritischer Hinweis).
+      default: true
+      selector:
+        boolean: {}
+    notify_cleared:
+      name: Entwarnung senden
+      description: Aufs Smartphone melden, wenn ein Ereignis vorbei ist.
+      default: true
+      selector:
+        boolean: {}
+
+mode: queued
+max: 20
+
+trigger:
+  - platform: event
+    event_type: condensate_frost_monitor_event
+    event_data:
+      device_id: !input monitor
+
+variables:
+  reasons: !input reasons
+  persistent: !input persistent
+  notify_service: !input notify_service
+  phone_levels: !input phone_levels
+  critical_alarm: !input critical_alarm
+  notify_cleared: !input notify_cleared
+  ev: "{{ trigger.event.data }}"
+  started: "{{ ev.type == 'problem_started' }}"
+  notification_id: "condensate_frost_monitor_{{ ev.entry_id }}_{{ ev.reason }}"
+  title: "{{ ev.name }}"
+  to_phone: >
+    {{ notify_service | trim != '' and ev.level in phone_levels
+       and (started or notify_cleared) }}
+  critical: "{{ critical_alarm and started and ev.level == 'alarm' }}"
+
+condition:
+  - condition: template
+    value_template: "{{ ev.type in ['problem_started', 'problem_cleared'] and ev.reason in reasons }}"
+
+action:
+  - if:
+      - condition: template
+        value_template: "{{ persistent }}"
+    then:
+      - if:
+          - condition: template
+            value_template: "{{ started }}"
+        then:
+          - action: persistent_notification.create
+            data:
+              notification_id: "{{ notification_id }}"
+              title: "{{ title }}"
+              message: "{{ ev.message }}"
+        else:
+          - action: persistent_notification.dismiss
+            data:
+              notification_id: "{{ notification_id }}"
+  - if:
+      - condition: template
+        value_template: "{{ to_phone }}"
+    then:
+      - action: "{{ notify_service | trim }}"
+        data:
+          title: "{{ title }}"
+          message: "{{ ev.message if started else 'Entwarnung: ' ~ ev.message }}"
+          data: >
+            {% set d = {'tag': notification_id, 'group': 'condensate_frost_monitor'} %}
+            {% if critical %}
+              {% set d = dict(d, ttl=0, priority='high', channel='alarm_stream',
+                 push={'sound': {'name': 'default', 'critical': 1, 'volume': 1.0}}) %}
+            {% endif %}
+            {{ d }}

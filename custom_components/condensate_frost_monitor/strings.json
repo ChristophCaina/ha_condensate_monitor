@@ -1,0 +1,408 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up condensate frost monitor",
+        "description": "Select the temperature sensors. Pipe and outdoor sensors are required.",
+        "data": {
+          "name": "Name",
+          "pipe_sensor": "Pipe sensor (condensate drain)",
+          "outdoor_sensor": "Outdoor temperature",
+          "soil_sensor": "Soil reference sensor (optional)"
+        },
+        "data_description": {
+          "pipe_sensor": "Temperature probe inside the condensate pipe.",
+          "outdoor_sensor": "Outdoor air temperature, used for frost degree, cold sum and coupling.",
+          "soil_sensor": "Undisturbed soil next to the drain. Soil entities are only created when set."
+        }
+      },
+      "weather": {
+        "title": "Weather station (optional)",
+        "description": "All optional. Extra entities are only created for sensors you set.",
+        "data": {
+          "humidity_sensor": "Outdoor humidity",
+          "dewpoint_sensor": "Outdoor dew point",
+          "rain_sensor": "Precipitation (counter)",
+          "wind_sensor": "Wind speed",
+          "forecast_entity": "Weather forecast"
+        },
+        "data_description": {
+          "humidity_sensor": "For dew point and defrost weather. Sufficient on its own; dew point is then calculated.",
+          "dewpoint_sensor": "Preferred when available.",
+          "rain_sensor": "An increasing precipitation counter, e.g. total_rain or daily_rain. Resets are handled.",
+          "wind_sensor": "Average wind speed (not gusts).",
+          "forecast_entity": "A weather entity with forecasts, e.g. DWD, AstroWeather or Met.no. Hourly forecasts are preferred."
+        }
+      },
+      "heatpump": {
+        "title": "Heat pump (optional)",
+        "description": "Heat pump signals, e.g. via EMS-ESP. All optional; entities are only created for inputs you set.",
+        "data": {
+          "defrost_entity": "Defrost signal",
+          "pan_temp_sensor": "Drain pan temperature",
+          "pan_heater_entity": "Drain pan heater",
+          "heat_cable_entity": "Heating cable"
+        },
+        "data_description": {
+          "defrost_entity": "A binary sensor that is on while defrosting, or a text sensor such as compressor activity (EMS-ESP: hpactivity) reporting “defrost”.",
+          "pan_temp_sensor": "Drain pan temperature of the outdoor unit (EMS-ESP: hpta4).",
+          "pan_heater_entity": "Drain pan heater state (EMS-ESP: hpea0).",
+          "heat_cable_entity": "Heating cable in the condensate drain (EMS-ESP: heatcable)."
+        }
+      }
+    },
+    "error": {
+      "same_sensor": "Each sensor may only be used once."
+    },
+    "abort": {
+      "already_configured": "This pipe sensor is already monitored."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sensors",
+        "description": "Change sensors or add/remove the soil sensor.",
+        "data": {
+          "pipe_sensor": "Pipe sensor (condensate drain)",
+          "outdoor_sensor": "Outdoor temperature",
+          "soil_sensor": "Soil reference sensor (optional)"
+        },
+        "data_description": {
+          "pipe_sensor": "Temperature probe inside the condensate pipe.",
+          "outdoor_sensor": "Outdoor air temperature, used for frost degree, cold sum and coupling.",
+          "soil_sensor": "Undisturbed soil next to the drain. Soil entities are only created when set."
+        }
+      },
+      "thresholds": {
+        "title": "Thresholds",
+        "description": "Starting values; tune them after first pour tests and defrost cycles. Sections for sensors you have not set up are hidden.",
+        "sections": {
+          "analysis": {
+            "name": "Pipe sensor analysis",
+            "description": "How the pipe temperature is smoothed and evaluated. Basis for all states below.",
+            "data": {
+              "baseline_hours": "Baseline window",
+              "slope_minutes": "Slope window",
+              "span_minutes": "Span window",
+              "event_threshold": "Event from deviation"
+            },
+            "data_description": {
+              "baseline_hours": "Window for the pipe's normal value (median). Longer is calmer but adapts more slowly to seasons.",
+              "slope_minutes": "Window for the slope (linear fit). Longer smooths the sensor's 0.1 K steps better but reacts more slowly.",
+              "span_minutes": "Window for the span (max − min). Shows how much the pipe temperature moved recently.",
+              "event_threshold": "Above this deviation a sample counts as an event (defrost water, backlog). The normal value is then frozen."
+            }
+          },
+          "plateau": {
+            "name": "Freezing plateau (warning)",
+            "description": "Freezing water holds the temperature at exactly 0 °C for a long time. If the pipe sensor sticks there, water is standing and freezing.",
+            "data": {
+              "plateau_band": "Band around 0 °C (±)",
+              "plateau_slope": "Max slope",
+              "plateau_minutes": "Min duration"
+            },
+            "data_description": {
+              "plateau_band": "How close to 0 °C the pipe must be. Some margin is needed because wireless sensors are off by a few tenths.",
+              "plateau_slope": "Maximum rate of change. A real plateau is almost flat.",
+              "plateau_minutes": "Both conditions must hold this long without interruption. Avoids false alarms from briefly passing cold water."
+            }
+          },
+          "below_zero": {
+            "name": "Pipe below zero (alarm)",
+            "description": "Water in the pipe is frozen solid or the pipe is empty and cold.",
+            "data": {
+              "below_zero_threshold": "Threshold",
+              "below_zero_minutes": "Min duration"
+            },
+            "data_description": {
+              "below_zero_threshold": "Alarm threshold. Slightly below 0 °C so measurement error at freezing point does not trigger it.",
+              "below_zero_minutes": "How long the pipe must stay below."
+            }
+          },
+          "stagnant": {
+            "name": "Suspected backlog (warning)",
+            "description": "Pipe temperature clearly differs from normal but barely moves. Flowing water drains away; standing water keeps its temperature.",
+            "data": {
+              "stagnant_deviation": "Min deviation",
+              "stagnant_span": "Max span",
+              "stagnant_minutes": "Min duration"
+            },
+            "data_description": {
+              "stagnant_deviation": "Minimum deviation from normal for a backlog to be considered.",
+              "stagnant_span": "Maximum movement within the span window. Below this the temperature counts as stuck.",
+              "stagnant_minutes": "How long the state must last."
+            }
+          },
+          "soil": {
+            "name": "Soil (info)",
+            "description": "Early warning when frost approaches the pipe from above.",
+            "data": {
+              "soil_frost_threshold": "Threshold",
+              "soil_frost_minutes": "Min duration"
+            },
+            "data_description": {
+              "soil_frost_threshold": "Soil temperature at which the frost front counts as close. The reference sensor sits above the pipe.",
+              "soil_frost_minutes": "How long the soil sensor must stay below."
+            }
+          },
+          "weather": {
+            "name": "Weather station",
+            "description": "Evaluation of the optional weather station sensors.",
+            "data": {
+              "defrost_temp_min": "Defrost weather: lower temperature",
+              "defrost_temp_max": "Defrost weather: upper temperature",
+              "defrost_spread": "Defrost weather: max dew point spread",
+              "wet_pit_rain_7d": "Soakaway wet from 7-day rain",
+              "wind_chill_speed": "Wind chill from hourly mean wind"
+            },
+            "data_description": {
+              "defrost_temp_min": "Lower outdoor temperature for defrost weather. Below this the air is usually too dry for much frost.",
+              "defrost_temp_max": "Upper outdoor temperature for defrost weather. Above this the evaporator usually defrosts on its own.",
+              "defrost_spread": "Maximum gap between temperature and dew point. Small means humid air, so the evaporator frosts quickly.",
+              "wet_pit_rain_7d": "Above this 7-day rainfall the soakaway counts as wet and absorbs condensate poorly.",
+              "wind_chill_speed": "Above this hourly mean wind, frost plus wind cools the vertical pipe further. Set higher if the station is more exposed than the heat pump."
+            }
+          },
+          "forecast": {
+            "name": "Forecast (info)",
+            "description": "Early warnings from the weather forecast.",
+            "data": {
+              "forecast_frost_threshold": "Frost forecast from 24 h minimum",
+              "clear_sky_cloud": "Radiative frost: max cloud cover",
+              "calm_wind": "Radiative frost: max wind"
+            },
+            "data_description": {
+              "forecast_frost_threshold": "If the forecast minimum for the next 24 h is at or below this, you get an early warning.",
+              "clear_sky_cloud": "Maximum cloud cover for a frost night to count as clear. On clear nights the ground cools more than the air by radiation.",
+              "calm_wind": "Maximum wind for radiative frost. Wind mixes the air and prevents strong cooling at ground level."
+            }
+          },
+          "heatpump": {
+            "name": "Heat pump",
+            "description": "Evaluation of defrost cycles and the drain pan.",
+            "data": {
+              "defrost_reaction_threshold": "Defrost: minimum pipe response",
+              "defrost_reaction_minutes": "Defrost: wait for response",
+              "defrost_miss_count": "Defrost: misses until warning",
+              "pan_frost_threshold": "Drain pan: frost threshold",
+              "pan_frost_minutes": "Drain pan: minimum duration"
+            },
+            "data_description": {
+              "defrost_reaction_threshold": "How far the pipe temperature must move away from the baseline after a defrost for the water to count as arrived.",
+              "defrost_reaction_minutes": "How long after the defrost ends to wait for a response before counting it as missed.",
+              "defrost_miss_count": "Consecutive defrosts without response that trigger the warning. Small defrosts sometimes do not reach the probe.",
+              "pan_frost_threshold": "Below this pan temperature condensate in the outdoor unit may freeze.",
+              "pan_frost_minutes": "How long the pan must stay below."
+            }
+          },
+          "fault": {
+            "name": "Sensor fault",
+            "description": "Detection of failed or empty wireless sensors.",
+            "data": {
+              "stale_minutes": "Sensor silent for"
+            },
+            "data_description": {
+              "stale_minutes": "If the pipe or soil sensor sends no new value for this long, it counts as faulty (e.g. flat battery, lost radio)."
+            }
+          },
+          "maintenance": {
+            "name": "Maintenance mode",
+            "description": "While maintenance mode is on, no notifications are triggered and the status shows “Maintenance”.",
+            "data": {
+              "maintenance_hours": "Switch off automatically after"
+            },
+            "data_description": {
+              "maintenance_hours": "Maintenance mode then switches itself off so it is not forgotten. 0 = never."
+            }
+          }
+        }
+      },
+      "weather": {
+        "title": "Weather station (optional)",
+        "description": "All optional. Extra entities are only created for sensors you set.",
+        "data": {
+          "humidity_sensor": "Outdoor humidity",
+          "dewpoint_sensor": "Outdoor dew point",
+          "rain_sensor": "Precipitation (counter)",
+          "wind_sensor": "Wind speed",
+          "forecast_entity": "Weather forecast"
+        },
+        "data_description": {
+          "humidity_sensor": "For dew point and defrost weather. Sufficient on its own; dew point is then calculated.",
+          "dewpoint_sensor": "Preferred when available.",
+          "rain_sensor": "An increasing precipitation counter, e.g. total_rain or daily_rain. Resets are handled.",
+          "wind_sensor": "Average wind speed (not gusts).",
+          "forecast_entity": "A weather entity with forecasts, e.g. DWD, AstroWeather or Met.no. Hourly forecasts are preferred."
+        }
+      },
+      "heatpump": {
+        "title": "Heat pump (optional)",
+        "description": "Heat pump signals, e.g. via EMS-ESP. All optional; entities are only created for inputs you set.",
+        "data": {
+          "defrost_entity": "Defrost signal",
+          "pan_temp_sensor": "Drain pan temperature",
+          "pan_heater_entity": "Drain pan heater",
+          "heat_cable_entity": "Heating cable"
+        },
+        "data_description": {
+          "defrost_entity": "A binary sensor that is on while defrosting, or a text sensor such as compressor activity (EMS-ESP: hpactivity) reporting “defrost”.",
+          "pan_temp_sensor": "Drain pan temperature of the outdoor unit (EMS-ESP: hpta4).",
+          "pan_heater_entity": "Drain pan heater state (EMS-ESP: hpea0).",
+          "heat_cable_entity": "Heating cable in the condensate drain (EMS-ESP: heatcable)."
+        }
+      }
+    },
+    "error": {
+      "same_sensor": "Each sensor may only be used once."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "ok": "OK",
+          "info": "Info",
+          "stoerung": "Sensor fault",
+          "warnung": "Warning",
+          "alarm": "Alarm",
+          "wartung": "Maintenance"
+        }
+      },
+      "baseline": {
+        "name": "Baseline"
+      },
+      "deviation": {
+        "name": "Deviation"
+      },
+      "slope": {
+        "name": "Slope"
+      },
+      "span": {
+        "name": "Span"
+      },
+      "delta_outdoor": {
+        "name": "Δ outdoor"
+      },
+      "frost_degree": {
+        "name": "Frost degree"
+      },
+      "frost_degree_hours": {
+        "name": "Frost degree hours season"
+      },
+      "delta_soil": {
+        "name": "Δ soil"
+      },
+      "soil_trend": {
+        "name": "Soil trend"
+      },
+      "buffer_hours": {
+        "name": "Sample buffer"
+      },
+      "dewpoint": {
+        "name": "Dew point"
+      },
+      "dewpoint_spread": {
+        "name": "Dew point spread"
+      },
+      "rain_24h": {
+        "name": "Precipitation 24 h"
+      },
+      "rain_7d": {
+        "name": "Precipitation 7 days"
+      },
+      "wind_1h": {
+        "name": "Wind 1 h mean"
+      },
+      "forecast_min_24h": {
+        "name": "Forecast minimum 24 h"
+      },
+      "forecast_min_48h": {
+        "name": "Forecast minimum 48 h"
+      },
+      "forecast_frost_hours": {
+        "name": "Forecast frost hours 48 h"
+      },
+      "forecast_frost_degree_hours": {
+        "name": "Forecast frost degree hours 48 h"
+      },
+      "forecast_defrost_hours": {
+        "name": "Forecast defrost hours 24 h"
+      },
+      "defrost_count_24h": {
+        "name": "Defrosts 24 h"
+      },
+      "last_defrost": {
+        "name": "Last defrost"
+      },
+      "last_defrost_duration": {
+        "name": "Last defrost duration"
+      },
+      "last_defrost_peak": {
+        "name": "Last defrost response"
+      },
+      "last_defrost_recovery": {
+        "name": "Last defrost recovery"
+      },
+      "pan_heater_hours": {
+        "name": "Drain pan heater runtime 24 h"
+      },
+      "heat_cable_hours": {
+        "name": "Heating cable runtime 24 h"
+      }
+    },
+    "binary_sensor": {
+      "freezing_plateau": {
+        "name": "Freezing plateau"
+      },
+      "below_zero": {
+        "name": "Pipe below zero"
+      },
+      "stagnant_water": {
+        "name": "Suspected backlog"
+      },
+      "soil_frost": {
+        "name": "Soil near frost"
+      },
+      "sensor_fault": {
+        "name": "Sensor fault"
+      },
+      "defrost_weather": {
+        "name": "Defrost weather"
+      },
+      "wet_pit": {
+        "name": "Soakaway wet"
+      },
+      "wind_chill": {
+        "name": "Wind chill"
+      },
+      "forecast_frost": {
+        "name": "Frost forecast"
+      },
+      "radiative_frost": {
+        "name": "Radiative frost forecast"
+      },
+      "defrost_active": {
+        "name": "Defrost active"
+      },
+      "defrost_no_reaction": {
+        "name": "Defrost without response"
+      },
+      "pan_frost": {
+        "name": "Drain pan at frost risk"
+      }
+    },
+    "switch": {
+      "maintenance": {
+        "name": "Maintenance mode"
+      }
+    }
+  },
+  "issues": {
+    "sensor_fault": {
+      "title": "Condensate frost monitor: sensor sends no values",
+      "description": "A sensor of “{name}” has not reported new values for more than {minutes} minutes. Check battery and radio connection. This notice disappears once values arrive again."
+    }
+  }
+}
