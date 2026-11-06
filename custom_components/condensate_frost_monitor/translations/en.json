@@ -300,6 +300,9 @@
       "delta_soil": {
         "name": "Δ soil"
       },
+      "delta_soil_24h": {
+        "name": "Δ Soil 24 h mean"
+      },
       "soil_trend": {
         "name": "Soil trend"
       },

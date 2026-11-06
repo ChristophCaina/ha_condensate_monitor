@@ -58,7 +58,7 @@ async def test_setup_with_soil(hass, freezer):
     entry = await _create(hass, with_soil=True)
     ids = _ids(hass, entry)
     assert "sensor.kondensat_delta_soil" in ids or any("soil" in i or "boden" in i for i in ids)
-    assert len(ids) == 17
+    assert len(ids) == 18
     await _advance(hass, freezer, 20)
     states = {i: hass.states.get(i) for i in ids if hass.states.get(i)}
     print({i: (s.state, s.attributes.get("unit_of_measurement")) for i, s in states.items()})
@@ -194,7 +194,7 @@ async def test_weather_sensors_optional(hass, freezer):
     entry = await _create(hass, with_soil=True, weather={
         "humidity_sensor": "sensor.feuchte", "rain_sensor": "sensor.regen", "wind_sensor": "sensor.wind",
     })
-    assert len(_ids(hass, entry)) == 17 + 6 + 3
+    assert len(_ids(hass, entry)) == 18 + 6 + 3
     _set(hass, pipe=3.0, outdoor=-2.0, soil=3.0)
     hass.states.async_set("sensor.regen", 112.5, {"unit_of_measurement": "mm"})
     for _ in range(4):  # Fühler melden regelmäßig (wie Ecowitt), sonst gäbe es eine Störung

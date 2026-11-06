@@ -300,6 +300,9 @@
       "delta_soil": {
         "name": "Δ Boden"
       },
+      "delta_soil_24h": {
+        "name": "Δ Boden 24-h-Mittel"
+      },
       "soil_trend": {
         "name": "Erdreich Trend"
       },

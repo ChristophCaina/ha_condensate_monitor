@@ -91,6 +91,7 @@ SENSORS: tuple[CondensateSensorDescription, ...] = (
         value_fn=lambda r: r.frost_degree_hours,
     ),
     _delta("delta_soil", lambda r: r.delta_soil, soil=True),
+    _delta("delta_soil_24h", lambda r: r.delta_soil_24h, soil=True),
     CondensateSensorDescription(
         key="soil_trend",
         translation_key="soil_trend",

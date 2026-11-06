@@ -423,6 +423,7 @@ class Result:
     span: float | None = None
     delta_outdoor: float | None = None
     delta_soil: float | None = None
+    delta_soil_24h: float | None = None
     soil_trend: float | None = None
     frost_degree: float | None = None
     frost_degree_hours: float = 0.0
@@ -615,6 +616,11 @@ class Analyzer:
         if self.has_soil:
             if pipe is not None and soil is not None:
                 r.delta_soil = pipe - soil
+            # Tagesmittel glättet die Tageswelle im Erdreich und das Rundungsrauschen
+            pairs = [(s.ts, s.pipe - s.soil) for s in self._window(now, SOIL_TREND_HOURS * 3600)
+                     if s.pipe is not None and s.soil is not None]
+            if pairs and (pairs[-1][0] - pairs[0][0]) >= SOIL_TREND_MIN_COVERAGE_HOURS * 3600:
+                r.delta_soil_24h = mean(d for _, d in pairs)
             soil_pts = [(s.ts, s.soil) for s in self._window(now, SOIL_TREND_HOURS * 3600)
                         if s.soil is not None]
             if soil_pts and (soil_pts[-1][0] - soil_pts[0][0]) >= SOIL_TREND_MIN_COVERAGE_HOURS * 3600:

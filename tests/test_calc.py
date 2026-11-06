@@ -274,3 +274,19 @@ def test_wet_pit_stays_wet_with_fresh_rain_after_old_rain_drops_out():
     an2.rain = an.rain
     an2.add_sample(now, 5.0, 3.0, None)
     assert an2.evaluate(now, 5.0, 3.0, None, False, False).wet_pit is True
+
+
+def test_delta_soil_24h_mean_smooths_daily_wave():
+    an = Analyzer(Settings(), has_soil=True)
+    for i in range(24 * 60 + 1):
+        ts = T0 + i * 60
+        soil = 12.0 + 0.3 * math.sin(2 * math.pi * i / (24 * 60))
+        an.add_sample(ts, 13.0, 8.0, round(soil, 1))
+    now = T0 + 24 * 3600
+    r = an.evaluate(now, 13.0, 8.0, 12.0, False, False)
+    assert math.isclose(r.delta_soil_24h, 1.0, abs_tol=0.02)
+    # Zu wenig Verlauf: noch kein Mittel
+    an2 = Analyzer(Settings(), has_soil=True)
+    for i in range(60):
+        an2.add_sample(T0 + i * 60, 13.0, 8.0, 12.0)
+    assert an2.evaluate(T0 + 3600, 13.0, 8.0, 12.0, False, False).delta_soil_24h is None
