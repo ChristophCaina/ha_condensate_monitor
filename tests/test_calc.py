@@ -198,3 +198,42 @@ def test_forecast_daily_without_clouds():
     fr = analyze_forecast(pts, T0, Settings())
     assert not fr.hourly and fr.min_24h == -4.0 and fr.frost
     assert fr.radiative_frost is None and fr.frost_hours_48h is None
+
+
+def test_radiative_frost_above_zero_air_forecast():
+    """Nacht 1./2.11.2026: Vorhersage nur -0,2 °C, klar und windstill, gemessen -2,5 °C.
+
+    Strahlungsfrost muss schon bei einer Luft-Vorhersage knapp über 0 °C anschlagen.
+    """
+    pts = [ForecastPoint(ts=T0 + h * 3600, temp=t, wind=1.5, cloud=5)
+           for h, t in enumerate([6, 4, 3, 2, 1.5, 1.0, 0.5, 0.2, 0.5, 2, 5, 8])]
+    fr = analyze_forecast(pts, T0, Settings())
+    assert fr.radiative_frost and fr.radiative_frost_at == T0 + 3 * 3600  # erste Stunde <= +2 °C
+    assert fr.frost is False  # ohne Standortkorrektur bleibt der Tiefstwert über -2 °C
+
+
+def test_radiative_frost_needs_clear_and_calm():
+    cloudy = [ForecastPoint(ts=T0 + h * 3600, temp=0.0, wind=1.0, cloud=90) for h in range(12)]
+    windy = [ForecastPoint(ts=T0 + h * 3600, temp=0.0, wind=5.0, cloud=0) for h in range(12)]
+    assert analyze_forecast(cloudy, T0, Settings()).radiative_frost is False
+    assert analyze_forecast(windy, T0, Settings()).radiative_frost is False
+    # 3 m/s (knapp 11 km/h) gelten als windstill
+    calm = [ForecastPoint(ts=T0 + h * 3600, temp=0.0, wind=3.0, cloud=0) for h in range(12)]
+    assert analyze_forecast(calm, T0, Settings()).radiative_frost is True
+
+
+def test_clear_night_offset_only_in_clear_calm_hours():
+    st = Settings(clear_night_offset=-2.0)
+    clear = [ForecastPoint(ts=T0 + h * 3600, temp=-0.5, wind=1.0, cloud=10) for h in range(12)]
+    fr = analyze_forecast(clear, T0, st)
+    assert math.isclose(fr.min_24h, -2.5)
+    assert fr.frost is True  # -2,5 °C <= -2 °C
+    assert fr.frost_hours_48h == 12
+    assert math.isclose(fr.frost_degree_hours_48h, 30.0)
+    # Bewölkt: keine Korrektur
+    cloudy = [ForecastPoint(ts=T0 + h * 3600, temp=-0.5, wind=1.0, cloud=90) for h in range(12)]
+    fr = analyze_forecast(cloudy, T0, st)
+    assert math.isclose(fr.min_24h, -0.5) and fr.frost is False
+    # Ohne Bewölkungsdaten (z. B. Tagesvorhersage): keine Korrektur
+    daily = [ForecastPoint(ts=T0 + d * 86400, temp=3.0, templow=-1.0) for d in range(3)]
+    assert analyze_forecast(daily, T0, st).min_24h == -1.0

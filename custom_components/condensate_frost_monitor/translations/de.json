@@ -170,12 +170,16 @@
             "data": {
               "forecast_frost_threshold": "Frost vorhergesagt ab Tiefstwert (24 h)",
               "clear_sky_cloud": "Strahlungsfrost: Bewölkung höchstens",
-              "calm_wind": "Strahlungsfrost: Wind höchstens"
+              "calm_wind": "Strahlungsfrost: Wind höchstens",
+              "radiative_temp": "Strahlungsfrost: Luft-Vorhersage höchstens",
+              "clear_night_offset": "Standortkorrektur für klare Nächte"
             },
             "data_description": {
               "forecast_frost_threshold": "Liegt der vorhergesagte Tiefstwert der nächsten 24 h hier oder darunter, gibt es eine Vorwarnung.",
               "clear_sky_cloud": "Höchste Bewölkung, bei der eine Frostnacht als klar gilt. In klaren Nächten kühlt der Boden durch Abstrahlung stärker aus als die Luft.",
-              "calm_wind": "Höchster Wind für Strahlungsfrost. Wind mischt die Luft und verhindert die starke Auskühlung am Boden."
+              "calm_wind": "Höchster Wind für Strahlungsfrost. Wind mischt die Luft und verhindert die starke Auskühlung am Boden. 3 m/s entsprechen knapp 11 km/h.",
+              "radiative_temp": "In klaren, windstillen Nächten wird es am Boden 2–4 K kälter als in 2 m Höhe. Deshalb droht Bodenfrost schon, wenn die Vorhersage für die Luft noch knapp über 0 °C liegt.",
+              "clear_night_offset": "So viel kälter wird es bei dir in klaren, windstillen Stunden als vorhergesagt (negativ). Wird auf Tiefstwerte, Froststunden und „Frost vorhergesagt“ angewendet. Ermitteln: gemessenen Tiefstwert einer klaren Frostnacht mit der Vorhersage vergleichen."
             }
           },
           "heatpump": {

@@ -61,7 +61,9 @@ class Settings:
     wind_chill_speed: float = 3.0  # m/s (1-h-Mittel)
     forecast_frost_threshold: float = -2.0  # °C Tiefstwert in den nächsten 24 h
     clear_sky_cloud: float = 30.0  # % Bewölkung, darunter gilt eine Nacht als klar
-    calm_wind: float = 2.0  # m/s, darunter gilt es als windstill
+    calm_wind: float = 3.0  # m/s, darunter gilt es als windstill
+    radiative_temp: float = 2.0  # °C vorhergesagte Lufttemperatur (2 m), ab der Strahlungsfrost droht
+    clear_night_offset: float = 0.0  # K Korrektur der Vorhersage in klaren, windstillen Stunden
     defrost_reaction_threshold: float = 0.5  # K Ausschlag am Rohr, der als Reaktion zählt
     defrost_reaction_minutes: float = 30.0  # so lange nach Abtau-Ende wird auf Reaktion gewartet
     defrost_miss_count: float = 2.0  # so viele Abtauungen in Folge ohne Reaktion bis zur Warnung
@@ -130,9 +132,20 @@ def analyze_forecast(points: list[ForecastPoint], now: float, st: "Settings") ->
     res.hourly = bool(gaps) and median(gaps) <= 3 * 3600
     step_h = (median(gaps) / 3600) if gaps else 1.0
 
-    def low(p: ForecastPoint) -> float | None:
+    def raw_low(p: ForecastPoint) -> float | None:
         vals = [v for v in (p.temp, p.templow) if v is not None]
         return min(vals) if vals else None
+
+    def clear_calm(p: ForecastPoint) -> bool:
+        return (p.cloud is not None and p.cloud <= st.clear_sky_cloud
+                and (p.wind is None or p.wind <= st.calm_wind))
+
+    def low(p: ForecastPoint) -> float | None:
+        """Tiefstwert, in klaren, windstillen Stunden um die Standortkorrektur verschoben."""
+        t = raw_low(p)
+        if t is not None and st.clear_night_offset and clear_calm(p):
+            t += st.clear_night_offset
+        return t
 
     def window(hours: float) -> list[ForecastPoint]:
         return [p for p in pts if p.ts < now + hours * 3600]
@@ -151,7 +164,7 @@ def analyze_forecast(points: list[ForecastPoint], now: float, st: "Settings") ->
         res.frost_degree_hours_48h = sum(max(0.0, -low(p)) * step_h for p in w48)
         defrost = 0.0
         for p in w24:
-            t = low(p)
+            t = raw_low(p)
             dp = p.dewpoint
             if dp is None and p.humidity is not None and t is not None:
                 dp = dewpoint_from_humidity(t, p.humidity)
@@ -161,10 +174,11 @@ def analyze_forecast(points: list[ForecastPoint], now: float, st: "Settings") ->
         res.defrost_hours_24h = defrost
         clouds = [p for p in w24 if p.cloud is not None]
         if clouds:
+            # Strahlungsfrost: In klaren, windstillen Nächten wird es am Boden deutlich
+            # kälter als in 2 m Höhe. Deshalb reicht eine Luft-Vorhersage knapp über 0 °C.
             res.radiative_frost = False
             for p in clouds:
-                calm = p.wind is None or p.wind <= st.calm_wind
-                if low(p) <= 0 and p.cloud <= st.clear_sky_cloud and calm:
+                if clear_calm(p) and raw_low(p) <= st.radiative_temp:
                     res.radiative_frost = True
                     res.radiative_frost_at = p.ts
                     break

@@ -170,12 +170,16 @@
             "data": {
               "forecast_frost_threshold": "Frost forecast from 24 h minimum",
               "clear_sky_cloud": "Radiative frost: max cloud cover",
-              "calm_wind": "Radiative frost: max wind"
+              "calm_wind": "Radiative frost: max wind",
+              "radiative_temp": "Radiative frost: max air forecast",
+              "clear_night_offset": "Site correction for clear nights"
             },
             "data_description": {
               "forecast_frost_threshold": "If the forecast minimum for the next 24 h is at or below this, you get an early warning.",
               "clear_sky_cloud": "Maximum cloud cover for a frost night to count as clear. On clear nights the ground cools more than the air by radiation.",
-              "calm_wind": "Maximum wind for radiative frost. Wind mixes the air and prevents strong cooling at ground level."
+              "calm_wind": "Maximum wind for radiative frost. Wind mixes the air and prevents strong cooling at ground level. 3 m/s is about 11 km/h.",
+              "radiative_temp": "On clear, calm nights the ground gets 2–4 K colder than the air at 2 m. Ground frost is therefore likely even when the air forecast is still just above 0 °C.",
+              "clear_night_offset": "How much colder your site gets than forecast in clear, calm hours (negative). Applied to forecast lows, frost hours and \"Frost forecast\". To determine it, compare the measured low of a clear frost night with the forecast."
             }
           },
           "heatpump": {
