@@ -153,14 +153,16 @@
               "defrost_temp_min": "Abtau-Wetter: untere Temperatur",
               "defrost_temp_max": "Abtau-Wetter: obere Temperatur",
               "defrost_spread": "Abtau-Wetter: max. Abstand zum Taupunkt",
-              "wet_pit_rain_7d": "Sickergrube nass ab Regen in 7 Tagen",
+              "wet_pit_index": "Sickergrube nass ab Vorregen-Index",
+              "rain_index_decay": "Vorregen-Index: Abklingen pro Tag",
               "wind_chill_speed": "Auskühlung durch Wind ab Windmittel"
             },
             "data_description": {
               "defrost_temp_min": "Untere Außentemperatur für Abtau-Wetter. Darunter ist die Luft meist so trocken, dass wenig Reif entsteht.",
               "defrost_temp_max": "Obere Außentemperatur für Abtau-Wetter. Darüber taut der Verdampfer meist von selbst ab.",
               "defrost_spread": "Maximaler Abstand zwischen Temperatur und Taupunkt. Klein heißt feuchte Luft, dann bereift der Verdampfer schnell.",
-              "wet_pit_rain_7d": "Ab dieser Regenmenge in 7 Tagen gilt die Sickergrube als nass und nimmt Kondensat schlechter auf.",
+              "wet_pit_index": "Ab diesem Vorregen-Index gilt die Sickergrube als nass und nimmt Kondensat schlechter auf. Gleichmäßig 25 mm pro Woche ergeben etwa 20–24 mm, ein einzelner Regen von 25 mm fällt nach rund 2 Tagen unter 20 mm.",
+              "rain_index_decay": "Um so viel Prozent pro Tag verliert älterer Regen an Gewicht. Höher bedeutet, die Grube gilt schneller wieder als trocken (durchlässiger Boden), niedriger, sie bleibt länger nass (lehmiger Boden).",
               "wind_chill_speed": "Ab diesem Windmittel kühlt Wind bei Frost das senkrechte Rohr zusätzlich aus. Steht die Station offener als die Wärmepumpe, höher ansetzen."
             }
           },
@@ -315,6 +317,9 @@
       },
       "rain_7d": {
         "name": "Niederschlag 7 Tage"
+      },
+      "rain_index": {
+        "name": "Vorregen-Index"
       },
       "wind_1h": {
         "name": "Wind 1-h-Mittel"

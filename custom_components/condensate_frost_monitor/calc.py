@@ -57,7 +57,8 @@ class Settings:
     defrost_temp_min: float = -7.0  # °C
     defrost_temp_max: float = 5.0  # °C
     defrost_spread: float = 3.0  # K Abstand Temperatur–Taupunkt
-    wet_pit_rain_7d: float = 25.0  # mm
+    wet_pit_index: float = 20.0  # mm Vorregen-Index, ab dem die Sickergrube als nass gilt
+    rain_index_decay: float = 15.0  # % pro Tag, um die älterer Regen im Index an Gewicht verliert
     wind_chill_speed: float = 3.0  # m/s (1-h-Mittel)
     forecast_frost_threshold: float = -2.0  # °C Tiefstwert in den nächsten 24 h
     clear_sky_cloud: float = 30.0  # % Bewölkung, darunter gilt eine Nacht als klar
@@ -78,7 +79,7 @@ SOIL_TREND_HOURS = 24.0
 SOIL_TREND_MIN_COVERAGE_HOURS = 20.0
 MAX_INTEGRATION_GAP_S = 300.0
 BUFFER_HOURS = 25.0
-RAIN_HISTORY_DAYS = 8.0
+RAIN_HISTORY_DAYS = 15.0
 RAIN_MERGE_S = 600.0
 
 
@@ -343,6 +344,21 @@ class RainTracker:
                 total += v1 - v0
         return total
 
+    def index(self, now: float, decay_per_day: float) -> float:
+        """Vorregen-Index: jeder Regen zählt mit (1 - Abklingen) hoch Alter in Tagen.
+
+        Frischer Regen zählt voll, älterer immer weniger. So klingt der Wert sanft ab,
+        statt nach genau sieben Tagen schlagartig zu fallen.
+        """
+        keep = max(0.0, 1.0 - decay_per_day / 100.0)
+        total = 0.0
+        pts = list(self.points)
+        for (t0, v0), (t1, v1) in zip(pts, pts[1:]):
+            if v1 > v0 and t1 <= now:
+                age_days = (now - t1) / 86400.0
+                total += (v1 - v0) * keep ** age_days
+        return total
+
     def dump(self) -> list:
         return [[round(t), v] for t, v in self.points]
 
@@ -419,6 +435,7 @@ class Result:
     defrost_weather: bool | None = None
     rain_24h: float | None = None
     rain_7d: float | None = None
+    rain_index: float | None = None
     rain_coverage_days: float | None = None
     wet_pit: bool | None = None
     wind_1h: float | None = None
@@ -623,9 +640,10 @@ class Analyzer:
             r.rain_24h = self.rain.sum_since(now - 86400)
             r.rain_7d = self.rain.sum_since(now - 7 * 86400)
             r.rain_coverage_days = round(min(self.rain.coverage_s(now), 7 * 86400) / 86400, 1)
+            r.rain_index = self.rain.index(now, st.rain_index_decay)
             # Schon mit unvollständigen Daten "nass", wenn die Schwelle erreicht ist;
-            # "trocken" erst, wenn wirklich eine ganze Woche vorliegt
-            if r.rain_7d >= st.wet_pit_rain_7d:
+            # "trocken" erst, wenn genug Verlauf vorliegt, dass alter Regen kaum noch zählt
+            if r.rain_index >= st.wet_pit_index:
                 r.wet_pit = True
             elif self.rain.coverage_s(now) >= 6.5 * 86400:
                 r.wet_pit = False

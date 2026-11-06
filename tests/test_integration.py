@@ -194,7 +194,7 @@ async def test_weather_sensors_optional(hass, freezer):
     entry = await _create(hass, with_soil=True, weather={
         "humidity_sensor": "sensor.feuchte", "rain_sensor": "sensor.regen", "wind_sensor": "sensor.wind",
     })
-    assert len(_ids(hass, entry)) == 17 + 5 + 3
+    assert len(_ids(hass, entry)) == 17 + 6 + 3
     _set(hass, pipe=3.0, outdoor=-2.0, soil=3.0)
     hass.states.async_set("sensor.regen", 112.5, {"unit_of_measurement": "mm"})
     for _ in range(4):  # Fühler melden regelmäßig (wie Ecowitt), sonst gäbe es eine Störung
@@ -254,7 +254,7 @@ async def test_threshold_sections_follow_configured_sensors(hass):
     names = [str(k) for k in result["data_schema"].schema]
     assert names == ["analysis", "plateau", "below_zero", "stagnant", "weather", "fault", "maintenance"]
     weather = result["data_schema"].schema[next(k for k in result["data_schema"].schema if str(k) == "weather")]
-    assert [str(k) for k in weather.schema.schema] == ["wet_pit_rain_7d"]
+    assert [str(k) for k in weather.schema.schema] == ["wet_pit_index", "rain_index_decay"]
 
 
 async def test_wind_added_later_is_backfilled(recorder_mock, hass, freezer):

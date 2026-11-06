@@ -153,14 +153,16 @@
               "defrost_temp_min": "Defrost weather: lower temperature",
               "defrost_temp_max": "Defrost weather: upper temperature",
               "defrost_spread": "Defrost weather: max dew point spread",
-              "wet_pit_rain_7d": "Soakaway wet from 7-day rain",
+              "wet_pit_index": "Soakaway wet from rain index",
+              "rain_index_decay": "Rain index: decay per day",
               "wind_chill_speed": "Wind chill from hourly mean wind"
             },
             "data_description": {
               "defrost_temp_min": "Lower outdoor temperature for defrost weather. Below this the air is usually too dry for much frost.",
               "defrost_temp_max": "Upper outdoor temperature for defrost weather. Above this the evaporator usually defrosts on its own.",
               "defrost_spread": "Maximum gap between temperature and dew point. Small means humid air, so the evaporator frosts quickly.",
-              "wet_pit_rain_7d": "Above this 7-day rainfall the soakaway counts as wet and absorbs condensate poorly.",
+              "wet_pit_index": "Above this antecedent precipitation index the soakaway counts as wet and absorbs condensate poorly. A steady 25 mm per week gives about 20–24 mm, a single 25 mm rain drops below 20 mm after about 2 days.",
+              "rain_index_decay": "Percentage by which older rain loses weight per day. Higher means the soakaway counts as dry again sooner (permeable soil), lower means it stays wet longer (clay soil).",
               "wind_chill_speed": "Above this hourly mean wind, frost plus wind cools the vertical pipe further. Set higher if the station is more exposed than the heat pump."
             }
           },
@@ -315,6 +317,9 @@
       },
       "rain_7d": {
         "name": "Precipitation 7 days"
+      },
+      "rain_index": {
+        "name": "Antecedent precipitation index"
       },
       "wind_1h": {
         "name": "Wind 1 h mean"

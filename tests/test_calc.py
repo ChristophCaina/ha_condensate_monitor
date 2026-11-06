@@ -237,3 +237,40 @@ def test_clear_night_offset_only_in_clear_calm_hours():
     # Ohne Bewölkungsdaten (z. B. Tagesvorhersage): keine Korrektur
     daily = [ForecastPoint(ts=T0 + d * 86400, temp=3.0, templow=-1.0) for d in range(3)]
     assert analyze_forecast(daily, T0, st).min_24h == -1.0
+
+
+def test_rain_index_decays_smoothly():
+    rt = RainTracker()
+    d = 86400.0
+    rt.add(T0, 100.0)
+    rt.add(T0 + 3600, 125.0)  # 25 mm Regen
+    now = T0 + 3600
+    assert math.isclose(rt.index(now, 15.0), 25.0)
+    assert math.isclose(rt.index(now + d, 15.0), 25.0 * 0.85)
+    assert math.isclose(rt.index(now + 7 * d, 15.0), 25.0 * 0.85 ** 7)
+    # Kein Sprung nach genau 7 Tagen wie bei der 7-Tage-Summe
+    before = rt.index(now + 7 * d - 60, 15.0)
+    after = rt.index(now + 7 * d + 60, 15.0)
+    assert abs(before - after) < 0.01
+
+
+def test_wet_pit_stays_wet_with_fresh_rain_after_old_rain_drops_out():
+    """Situation 8.10.2026: Der Regen vom 1.10. fällt aus der 7-Tage-Summe,
+    obwohl es gerade wieder regnet. Mit dem Index bleibt die Grube nass."""
+    an = Analyzer(Settings(), has_soil=False, has_rain=True)
+    d = 86400.0
+    an.rain.add(T0 - 8 * d, 0.0)
+    an.rain.add(T0, 0.0)
+    an.rain.add(T0 + 3600, 20.0)  # 20 mm am Tag 0
+    an.rain.add(T0 + 7 * d - 3600, 20.0)
+    an.rain.add(T0 + 7 * d + 2 * 3600, 30.0)  # 10 mm frischer Regen an Tag 7
+    now = T0 + 7 * d + 3 * 3600
+    an.add_sample(now, 5.0, 3.0, None)
+    r = an.evaluate(now, 5.0, 3.0, None, False, False)
+    assert math.isclose(r.rain_7d, 10.0)  # 7-Tage-Summe: alter Regen ist raus
+    assert r.rain_index > 10.0  # Index: alter Regen zählt noch abgeschwächt mit
+    st = Settings(wet_pit_index=14.0)
+    an2 = Analyzer(st, has_soil=False, has_rain=True)
+    an2.rain = an.rain
+    an2.add_sample(now, 5.0, 3.0, None)
+    assert an2.evaluate(now, 5.0, 3.0, None, False, False).wet_pit is True

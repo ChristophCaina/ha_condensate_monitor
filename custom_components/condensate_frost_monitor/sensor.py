@@ -139,6 +139,15 @@ SENSORS: tuple[CondensateSensorDescription, ...] = (
         requires="rain",
     ),
     CondensateSensorDescription(
+        key="rain_index",
+        translation_key="rain_index",
+        device_class=SensorDeviceClass.PRECIPITATION,
+        native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
+        suggested_display_precision=1,
+        value_fn=lambda r: r.rain_index,
+        requires="rain",
+    ),
+    CondensateSensorDescription(
         key="wind_1h",
         translation_key="wind_1h",
         device_class=SensorDeviceClass.WIND_SPEED,
@@ -300,6 +309,13 @@ class CondensateSensor(CondensateEntity, SensorEntity):
             return {"gruende": r.reasons}
         if key == "baseline":
             return {"eingefroren": r.baseline_frozen}
+        if key == "rain_index":
+            st = self.monitor.analyzer.settings
+            return {
+                "abklingen_prozent_pro_tag": st.rain_index_decay,
+                "schwelle_nass": st.wet_pit_index,
+                "abdeckung_tage": r.rain_coverage_days,
+            }
         if key in ("rain_24h", "rain_7d"):
             return {
                 "abdeckung_tage": r.rain_coverage_days,
