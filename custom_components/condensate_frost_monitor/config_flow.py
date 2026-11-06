@@ -193,6 +193,7 @@ class CondensateFrostMonitorConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=_sensor_schema(user_input or {}, with_name=True),
             errors=errors,
+            last_step=False,
         )
 
     async def async_step_weather(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -200,7 +201,8 @@ class CondensateFrostMonitorConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self._data.update(_clean_weather(user_input))
             return await self.async_step_heatpump()
-        return self.async_show_form(step_id="weather", data_schema=_weather_schema({}))
+        return self.async_show_form(step_id="weather", data_schema=_weather_schema({}),
+                                    last_step=False)
 
     async def async_step_heatpump(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Optionale Signale der Wärmepumpe (z. B. über EMS-ESP)."""
@@ -208,7 +210,8 @@ class CondensateFrostMonitorConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(
                 title=self._name, data={**self._data, **_clean_heatpump(user_input)}
             )
-        return self.async_show_form(step_id="heatpump", data_schema=_heatpump_schema({}))
+        return self.async_show_form(step_id="heatpump", data_schema=_heatpump_schema({}),
+                                    last_step=True)
 
     @staticmethod
     @callback
@@ -238,6 +241,7 @@ class CondensateFrostMonitorOptionsFlow(OptionsFlow):
             step_id="init",
             data_schema=_sensor_schema(user_input or current, with_name=False),
             errors=errors,
+            last_step=False,
         )
 
     async def async_step_weather(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -245,14 +249,16 @@ class CondensateFrostMonitorOptionsFlow(OptionsFlow):
         if user_input is not None:
             self._sensors.update(_clean_weather(user_input))
             return await self.async_step_heatpump()
-        return self.async_show_form(step_id="weather", data_schema=_weather_schema(current))
+        return self.async_show_form(step_id="weather", data_schema=_weather_schema(current),
+                                    last_step=False)
 
     async def async_step_heatpump(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         current = {**self.config_entry.data, **self.config_entry.options}
         if user_input is not None:
             self._sensors.update(_clean_heatpump(user_input))
             return await self.async_step_thresholds()
-        return self.async_show_form(step_id="heatpump", data_schema=_heatpump_schema(current))
+        return self.async_show_form(step_id="heatpump", data_schema=_heatpump_schema(current),
+                                    last_step=False)
 
     async def async_step_thresholds(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         current = {**self.config_entry.data, **self.config_entry.options}
@@ -261,5 +267,6 @@ class CondensateFrostMonitorOptionsFlow(OptionsFlow):
             kept = {k: current[k] for k in THRESHOLDS if k in current}
             return self.async_create_entry(data={**kept, **self._sensors, **_flatten(user_input)})
         return self.async_show_form(
-            step_id="thresholds", data_schema=_threshold_schema(current, self._sensors)
+            step_id="thresholds", data_schema=_threshold_schema(current, self._sensors),
+            last_step=True,
         )

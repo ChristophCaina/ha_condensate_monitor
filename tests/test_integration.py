@@ -294,3 +294,17 @@ async def test_dewpoint_entity_only_when_computed(hass):
     ids = _ids(hass, entry)
     assert not any(i.endswith("_dew_point") for i in ids)
     assert any(i.endswith("_dew_point_spread") for i in ids)
+
+
+async def test_options_flow_marks_intermediate_steps(hass):
+    """Zwischenschritte zeigen 'Weiter' statt 'OK', erst die Schwellen 'Absenden'."""
+    entry = await _create(hass, with_soil=False)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["step_id"] == "init" and result["last_step"] is False
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONF_PIPE_SENSOR: "sensor.rohr", CONF_OUTDOOR_SENSOR: "sensor.aussen"})
+    assert result["step_id"] == "weather" and result["last_step"] is False
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {})
+    assert result["step_id"] == "heatpump" and result["last_step"] is False
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {})
+    assert result["step_id"] == "thresholds" and result["last_step"] is True
