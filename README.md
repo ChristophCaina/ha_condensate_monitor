@@ -17,7 +17,7 @@ Im zweiten Schritt der Einrichtung kannst du optional Sensoren einer Wetterstati
 | Rolle | Entities |
 |---|---|
 | Luftfeuchte und/oder Taupunkt | Abstand zum Taupunkt, Abtau-Wetter, Taupunkt (nur wenn aus der Luftfeuchte berechnet) |
-| Niederschlagszähler (total, yearly, daily …) | Niederschlag 24 h, Niederschlag 7 Tage, Sickergrube nass |
+| Niederschlagszähler (total, yearly, daily …) | Niederschlag 24 h, Niederschlag 7 Tage, Vorregen-Index, Sickergrube nass |
 | Windgeschwindigkeit | Wind 1-h-Mittel, Auskühlung durch Wind |
 | Wettervorhersage (`weather`-Entity) | Tiefstwert 24/48 h, Froststunden und Frostgradstunden 48 h, Abtau-Stunden 24 h, Frost vorhergesagt, Strahlungsfrost vorhergesagt |
 
@@ -30,7 +30,7 @@ Im dritten Schritt kannst du optional Signale der Wärmepumpe angeben, z. B. aus
 | Heizung Kondensatwanne | `hpea0` | Laufzeit Wannenheizung 24 h |
 | Heizband | `heatcable` | Laufzeit Heizband 24 h |
 
-Ist nur die Luftfeuchte gesetzt, wird der Taupunkt nach der Magnus-Formel berechnet. Beim Niederschlag zählen nur positive Sprünge des Zählers, tägliche oder wöchentliche Rücksetzungen stören also nicht. Die letzten 8 Tage werden aus dem Recorder nachgeladen.
+Ist nur die Luftfeuchte gesetzt, wird der Taupunkt nach der Magnus-Formel berechnet. Beim Niederschlag zählen nur positive Sprünge des Zählers, tägliche oder wöchentliche Rücksetzungen stören also nicht. Die letzten 15 Tage werden aus dem Recorder nachgeladen, soweit er sie noch hat.
 
 Die Vorhersage wird alle 30 Minuten über `weather.get_forecasts` geholt, bevorzugt stündlich, sonst zweimal täglich oder täglich. Neben den Standardfeldern werden auch die Felder von AstroWeather ausgewertet (`cloudcover_percentage`, `fog2m_area_fraction`, `precipitation_amount`). Ohne stündliche Vorhersage gibt es nur die Tiefstwerte.
 
@@ -46,6 +46,8 @@ Die Vorhersage wird alle 30 Minuten über `weather.get_forecasts` geholt, bevorz
 - **Frostgrad:** Wie weit die Außenluft unter 0 °C liegt.
 - **Frostgradstunden Saison:** Kältesumme, Reset am 1. Oktober.
 - **Δ Boden, Erdreich Trend** (nur mit Erdfühler): Der Trend in K/Tag wird erst nach 20 h Daten angezeigt, dadurch gibt es kein Einbau-Artefakt.
+- **Δ Boden 24-h-Mittel** (nur mit Erdfühler): Tagesmittel von Rohr minus Erdreich. Glättet die Tageswelle im Erdreich und das Rundungsrauschen der Fühler. Steigt im Herbst stetig an; kippt der Anstieg im Winter, holt die Kälte das Rohr ein.
+- **Vorregen-Index** (mit Niederschlag): Regen der letzten Tage, wobei älterer Regen pro Tag an Gewicht verliert (Standard 15 %). Klingt sanft ab statt nach 7 Tagen schlagartig zu fallen.
 - **Messpuffer** (Diagnose, standardmäßig deaktiviert).
 
 **Binärsensoren** (mit eingebauter Verzögerung)
@@ -54,10 +56,11 @@ Die Vorhersage wird alle 30 Minuten über `weather.get_forecasts` geholt, bevorz
 - **Rückstau-Verdacht:** Abweichung ≥ 1 K bei Spannweite ≤ 0,3 K, mindestens 60 min lang. Die Temperatur „hängt fest“ → Warnung.
 - **Erdreich frostnah** (nur mit Erdfühler): unter 2 °C, mindestens 60 min lang → Info.
 - **Abtau-Wetter** (mit Feuchte/Taupunkt): −7 bis +5 °C und höchstens 3 K Abstand zum Taupunkt, mindestens 30 min lang. Beeinflusst den Status nicht, sondern zeigt nur, wann mit vielen Abtauungen zu rechnen ist.
-- **Sickergrube nass** (mit Niederschlag): mindestens 25 mm in 7 Tagen. Zusammen mit Frost → Info.
+- **Sickergrube nass** (mit Niederschlag): Vorregen-Index ab 20 mm. Zusammen mit Frost → Info.
 - **Auskühlung durch Wind** (mit Wind): Frost und Windmittel ab 3 m/s, mindestens 30 min lang → Info.
 - **Frost vorhergesagt** (mit Vorhersage): Tiefstwert der nächsten 24 h ≤ −2 °C → Info.
-- **Strahlungsfrost vorhergesagt** (mit Vorhersage, braucht Bewölkungsdaten): In den nächsten 24 h kommt eine Stunde mit höchstens 0 °C, höchstens 30 % Bewölkung und höchstens 2 m/s Wind. In klaren, windstillen Nächten kühlt der Boden stärker aus als die Luft → Info.
+- **Strahlungsfrost vorhergesagt** (mit Vorhersage, braucht Bewölkungsdaten): In den nächsten 24 h kommt eine Stunde mit einer Luft-Vorhersage von höchstens +2 °C, höchstens 30 % Bewölkung und höchstens 3 m/s Wind. In klaren, windstillen Nächten wird es am Boden 2–4 K kälter als in 2 m Höhe, Bodenfrost droht also schon über 0 °C → Info.
+- **Standortkorrektur für klare Nächte** (Einstellung, Standard 0 K): Viele Gärten werden in klaren, windstillen Nächten kälter als vorhergesagt. Die Korrektur verschiebt in solchen Stunden Tiefstwerte, Froststunden und „Frost vorhergesagt“. Ermitteln: gemessenen Tiefstwert einer klaren Frostnacht mit der Vorhersage vergleichen, z. B. −2,5 °C gemessen bei −0,5 °C vorhergesagt → −2 K.
 - **Abtauung ohne Reaktion** (mit Abtau-Signal): Nach mehreren Abtauungen in Folge (Standard 2) hat sich der Rohrfühler innerhalb von 30 min nach Abtau-Ende nicht um mindestens 0,5 K bewegt. Das Abtauwasser kommt nicht an, oben ist vermutlich etwas zu → Warnung.
 - **Kondensatwanne frostgefährdet** (mit Wannentemperatur): Wanne unter 0,5 °C, mindestens 15 min lang → Warnung.
 - **Fühlerstörung:** Rohr- oder Erdfühler seit 30 min ohne neue Meldung → Störung.

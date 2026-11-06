@@ -40,7 +40,7 @@ class MaintenanceSwitch(CondensateEntity, SwitchEntity, RestoreEntity):
         until = self.monitor.maintenance_until
         if until is None or until == float("inf"):
             return {"endet_um": None}
-        return {"endet_um": dt_util.utc_from_timestamp(until).isoformat()}
+        return {"endet_um": dt_util.as_local(dt_util.utc_from_timestamp(until)).isoformat()}
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()

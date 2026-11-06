@@ -6,12 +6,12 @@
   ],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/ChristophCaina/condensate_frost_monitor",
+  "documentation": "https://github.com/ChristophCaina/ha_condensate_monitor",
   "integration_type": "service",
   "iot_class": "calculated",
-  "issue_tracker": "https://github.com/ChristophCaina/condensate_frost_monitor/issues",
+  "issue_tracker": "https://github.com/ChristophCaina/ha_condensate_monitor/issues",
   "requirements": [],
-  "version": "0.6.0",
+  "version": "0.7.0",
   "after_dependencies": [
     "recorder"
   ]
