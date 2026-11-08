@@ -99,7 +99,7 @@ class CondensateMonitor:
         self.maintenance_until: float | None = None  # None = aus, inf = ohne Ablauf
         self._last_reasons: set[str] | None = None
         self._last_status: str | None = None
-        self._fault_issue = False
+        self._fault_issue: tuple[str, ...] = ()
         self._device_id: str | None = None
         settings = Settings(**{k: float(cfg.get(k, d[0])) for k, d in THRESHOLDS.items()})
         self.stale_s = settings.stale_minutes * 60
@@ -262,12 +262,27 @@ class CondensateMonitor:
             **data,
         })
 
+    def _describe_faulty(self, reasons: tuple[str, ...]) -> str:
+        """Betroffene Fühler als 'Anzeigename (entity_id)', mit Komma getrennt."""
+        ids = {"rohrfuehler_ohne_werte": self.pipe_id, "erdfuehler_ohne_werte": self.soil_id}
+        parts = []
+        for reason in reasons:
+            entity_id = ids.get(reason)
+            if not entity_id:
+                continue
+            state = self.hass.states.get(entity_id)
+            name = state.name if state is not None else entity_id
+            parts.append(f"{name} ({entity_id})")
+        return ", ".join(parts)
+
     def _process_events(self) -> None:
         r = self.result
         if r is None:
             return
-        # Reparatur-Hinweis bei Fühlerstörung (auch im Wartungsmodus)
-        if r.fault and not self._fault_issue:
+        # Reparatur-Hinweis bei Fühlerstörung (auch im Wartungsmodus).
+        # Ändert sich, welcher Fühler betroffen ist, wird der Hinweis neu angelegt.
+        faulty = tuple(r.fault_reasons) if r.fault else ()
+        if faulty and faulty != self._fault_issue:
             ir.async_create_issue(
                 self.hass, DOMAIN, f"sensor_fault_{self.entry.entry_id}",
                 is_fixable=False, severity=ir.IssueSeverity.WARNING,
@@ -275,12 +290,13 @@ class CondensateMonitor:
                 translation_placeholders={
                     "name": self.entry.title,
                     "minutes": str(int(self.analyzer.settings.stale_minutes)),
+                    "sensors": self._describe_faulty(faulty),
                 },
             )
-            self._fault_issue = True
-        elif not r.fault and self._fault_issue:
+            self._fault_issue = faulty
+        elif not faulty and self._fault_issue:
             ir.async_delete_issue(self.hass, DOMAIN, f"sensor_fault_{self.entry.entry_id}")
-            self._fault_issue = False
+            self._fault_issue = ()
 
         if self.maintenance_active:
             return

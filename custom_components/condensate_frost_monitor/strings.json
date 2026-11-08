@@ -414,7 +414,7 @@
   "issues": {
     "sensor_fault": {
       "title": "Condensate frost monitor: sensor sends no values",
-      "description": "A sensor of “{name}” has not reported new values for more than {minutes} minutes. Check battery and radio connection. This notice disappears once values arrive again."
+      "description": "For “{name}”, {sensors} has not reported new values for more than {minutes} minutes. Check battery and radio connection. This notice disappears once values arrive again."
     }
   }
 }
