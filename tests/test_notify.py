@@ -60,6 +60,8 @@ async def test_repairs_issue_on_sensor_fault(hass, freezer):
     await _advance(hass, freezer, 35)
     issue = ir.async_get(hass).async_get_issue(DOMAIN, f"sensor_fault_{entry.entry_id}")
     assert issue is not None and issue.translation_key == "sensor_fault"
+    # Der Hinweis nennt den betroffenen Fühler
+    assert "sensor.rohr" in issue.translation_placeholders["sensors"]
     _set(hass)
     await _advance(hass, freezer, 2)
     assert ir.async_get(hass).async_get_issue(DOMAIN, f"sensor_fault_{entry.entry_id}") is None
