@@ -3,7 +3,7 @@
 import shutil
 from pathlib import Path
 
-from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers import device_registry as dr, issue_registry as ir
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import async_capture_events, async_mock_service
 
@@ -67,14 +67,12 @@ async def test_repairs_issue_on_sensor_fault(hass, freezer):
     assert ir.async_get(hass).async_get_issue(DOMAIN, f"sensor_fault_{entry.entry_id}") is None
 
 
-async def test_blueprint_notifies(hass, freezer):
+async def test_blueprint_notifies(hass, freezer, caplog):
     target = Path(hass.config.path("blueprints/automation/condensate_frost_monitor"))
     target.mkdir(parents=True, exist_ok=True)
     shutil.copy(BLUEPRINT, target / "notify.yaml")
-    await _create(hass, with_soil=False)
-    device_id = next(iter(
-        d.id for d in __import__("homeassistant.helpers.device_registry", fromlist=["x"]).async_get(hass).devices.values()
-    ))
+    entry = await _create(hass, with_soil=False)
+    device_id = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)[0].id
     created = async_mock_service(hass, "persistent_notification", "create")
     dismissed = async_mock_service(hass, "persistent_notification", "dismiss")
     phone = async_mock_service(hass, "notify", "mobile_app_test")
@@ -97,3 +95,5 @@ async def test_blueprint_notifies(hass, freezer):
         _set(hass, pipe=4.0, outdoor=2.0)
     assert dismissed
     assert phone[-1].data["message"].startswith("Entwarnung") or "Entwarnung" in phone[-1].data["message"]
+    # status_changed-Events haben kein 'reason' und dürfen die Automation nicht auslösen
+    assert "has no attribute 'reason'" not in caplog.text

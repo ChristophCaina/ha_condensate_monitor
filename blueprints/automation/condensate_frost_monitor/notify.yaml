@@ -5,7 +5,7 @@ blueprint:
     Ereignisse melden, und ob als Benachrichtigung in Home Assistant, aufs
     Smartphone oder beides. Im Wartungsmodus kommen keine Ereignisse.
   domain: automation
-  source_url: https://github.com/ChristophCaina/condensate_frost_monitor/blob/main/blueprints/automation/condensate_frost_monitor/notify.yaml
+  source_url: https://github.com/ChristophCaina/ha_condensate_monitor/blob/main/blueprints/automation/condensate_frost_monitor/notify.yaml
   input:
     monitor:
       name: Kondensat-Frostwächter
@@ -108,11 +108,19 @@ blueprint:
 mode: queued
 max: 20
 
+# Nur problem_started/problem_cleared: status_changed hat kein 'reason', die
+# variables würden sonst schon vor der condition daran scheitern.
 trigger:
   - platform: event
     event_type: condensate_frost_monitor_event
     event_data:
       device_id: !input monitor
+      type: problem_started
+  - platform: event
+    event_type: condensate_frost_monitor_event
+    event_data:
+      device_id: !input monitor
+      type: problem_cleared
 
 variables:
   reasons: !input reasons
@@ -132,7 +140,7 @@ variables:
 
 condition:
   - condition: template
-    value_template: "{{ ev.type in ['problem_started', 'problem_cleared'] and ev.reason in reasons }}"
+    value_template: "{{ ev.reason in reasons }}"
 
 action:
   - if:
