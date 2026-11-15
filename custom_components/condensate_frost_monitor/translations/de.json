@@ -414,7 +414,7 @@
   "issues": {
     "sensor_fault": {
       "title": "Kondensat-Frostwächter: Fühler liefert keine Werte",
-      "description": "Bei „{name}“ meldet ein Fühler seit über {minutes} Minuten keine neuen Werte. Prüfe Batterie und Funkverbindung. Der Hinweis verschwindet von selbst, sobald wieder Werte kommen."
+      "description": "Bei „{name}“ liefert {sensors} seit über {minutes} Minuten keine neuen Werte. Prüfe Batterie und Funkverbindung. Der Hinweis verschwindet von selbst, sobald wieder Werte kommen."
     }
   }
 }
