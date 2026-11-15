@@ -250,8 +250,14 @@ class CondensateMonitor:
 
     def _fire(self, kind: str, **data) -> None:
         if self._device_id is None:
-            device = dr.async_get(self.hass).async_get_device(
-                identifiers={(DOMAIN, self.entry.entry_id)}
+            # Gerät über den eigenen Config-Entry suchen. async_get_device(identifiers=...)
+            # ist seit HA 2026.x veraltet und fällt mit 2027.8 weg.
+            ident = (DOMAIN, self.entry.entry_id)
+            device = next(
+                (d for d in dr.async_entries_for_config_entry(
+                    dr.async_get(self.hass), self.entry.entry_id)
+                 if ident in d.identifiers),
+                None,
             )
             self._device_id = device.id if device else None
         self.hass.bus.async_fire(EVENT_TYPE, {
